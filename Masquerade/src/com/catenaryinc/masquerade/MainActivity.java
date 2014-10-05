@@ -1,5 +1,9 @@
 package com.catenaryinc.masquerade;
 
+import org.json.JSONObject;
+
+import com.firebase.client.*;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,15 +12,21 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
+import android.util.ArrayMap;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.*;
+
+
 
 public class MainActivity extends ActionBarActivity
         implements NavigationDrawerFragment.NavigationDrawerCallbacks {
+	Firebase myFirebaseRef;
+	String u_id;
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -41,6 +51,27 @@ public class MainActivity extends ActionBarActivity
         mNavigationDrawerFragment.setUp(
                 R.id.navigation_drawer,
                 (DrawerLayout) findViewById(R.id.drawer_layout));
+        Firebase.setAndroidContext(this);
+        myFirebaseRef = new Firebase("https://masquerades.firebaseio.com/new/");
+        final String temp_id = "s_"+Math.abs(new Random().nextLong());
+        Map<String, Object> request_id = new HashMap<String, Object>();
+        request_id.put("approve", false);
+        request_id.put("latitude", "");
+        request_id.put("longitude:", "");
+        request_id.put("temp_id", temp_id);
+        request_id.put("time_stamp", System.currentTimeMillis());
+        request_id.put("type", 0);
+        
+        myFirebaseRef.child("unprocessed").child(temp_id).setValue(request_id);
+        myFirebaseRef.child("processed").addValueEventListener(new ValueEventListener() {
+        	  @Override
+        	  public void onDataChange(DataSnapshot snapshot) {
+        		 Map<String, Object> snap = (Map<String, Object>)snapshot.getValue();
+        		 if(snap.containsKey(temp_id))
+        			 u_id = (String) ((Map<String,Object>)snap.get(temp_id)).get("u_id");
+        	  }
+        	  @Override public void onCancelled(FirebaseError error) { }
+        	});
     }
 
     @Override
