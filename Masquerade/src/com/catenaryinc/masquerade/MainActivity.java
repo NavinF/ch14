@@ -17,7 +17,14 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ListView;
+import android.widget.TextView;
 
 import java.util.*;
 
@@ -25,8 +32,9 @@ import java.util.*;
 
 public class MainActivity extends ActionBarActivity
         implements NavigationDrawerFragment.NavigationDrawerCallbacks {
+	private static final String firebase_base = "https://masquerades.firebaseio.com";
 	Firebase myFirebaseRef;
-	String u_id;
+	static volatile String u_id;
 
     /**
      * Fragment managing the behaviors, interactions and presentation of the navigation drawer.
@@ -52,26 +60,57 @@ public class MainActivity extends ActionBarActivity
                 R.id.navigation_drawer,
                 (DrawerLayout) findViewById(R.id.drawer_layout));
         Firebase.setAndroidContext(this);
-        myFirebaseRef = new Firebase("https://masquerades.firebaseio.com/new/");
+        myFirebaseRef = new Firebase(firebase_base+"/new/");
         final String temp_id = "s_"+Math.abs(new Random().nextLong());
         Map<String, Object> request_id = new HashMap<String, Object>();
         request_id.put("approve", false);
-        request_id.put("latitude", "");
-        request_id.put("longitude:", "");
+        request_id.put("latitude", "-1000");
+        request_id.put("longitude", "-1000");
         request_id.put("temp_id", temp_id);
         request_id.put("time_stamp", System.currentTimeMillis());
         request_id.put("type", 0);
         
         myFirebaseRef.child("unprocessed").child(temp_id).setValue(request_id);
-        myFirebaseRef.child("processed").addValueEventListener(new ValueEventListener() {
+        myFirebaseRef.child("processed").child(temp_id).addValueEventListener(new ValueEventListener() {
         	  @Override
         	  public void onDataChange(DataSnapshot snapshot) {
-        		 Map<String, Object> snap = (Map<String, Object>)snapshot.getValue();
-        		 if(snap.containsKey(temp_id))
-        			 u_id = (String) ((Map<String,Object>)snap.get(temp_id)).get("u_id");
-        	  }
-        	  @Override public void onCancelled(FirebaseError error) { }
-        	});
+        		 final Map<String, Object> snap = (Map<String, Object>)snapshot.getValue();
+				if (snap != null)
+					System.out.println();
+				if (snap != null) {
+					u_id = (String) snap.get("u_id");
+					snapshot.getRef().removeValue();
+					runOnUiThread(new Runnable() {
+
+						@Override
+						public void run() {
+							((Button) findViewById(R.id.btnSend)).setEnabled(true);
+						}
+					});
+					final Firebase myFirebaseRef = new Firebase(firebase_base);
+					myFirebaseRef.child("users").child(u_id.substring(0, 9)).child("server")
+							.addValueEventListener(new ValueEventListener() {
+
+								@Override
+								public void onDataChange(DataSnapshot arg0) {
+									System.out.println("qq "+arg0.getValue());
+
+								}
+
+								@Override
+								public void onCancelled(FirebaseError arg0) {
+									// TODO Auto-generated
+									// method stub
+
+								}
+							});
+				}
+			}
+
+			@Override
+			public void onCancelled(FirebaseError error) {
+			}
+		});
     }
 
     @Override
@@ -158,9 +197,26 @@ public class MainActivity extends ActionBarActivity
         }
 
         @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+        public View onCreateView(final LayoutInflater inflater, final ViewGroup container,
                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+            final View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+            final ListView log = (ListView)rootView.findViewById(R.id.listView1);
+            final ArrayAdapter<String> adapter = new ArrayAdapter<String>(rootView.getContext(), android.R.layout.simple_list_item_1);
+            log.setAdapter(adapter);
+            Button send = (Button)rootView.findViewById(R.id.btnSend);
+            send.setOnClickListener(new OnClickListener() {
+            	final Firebase myFirebaseRef = new Firebase(firebase_base);
+				@Override
+				public void onClick(View v) {
+					EditText editText = (EditText)rootView.findViewById(R.id.textInput);
+					String text = editText.getText().toString();
+					Map<String, Object> text_submission = new HashMap<String, Object>();
+					text_submission.put("body", text);
+					myFirebaseRef.child("users/"+MainActivity.u_id+"/user").push().setValue(text_submission);
+					adapter.add(text);
+					editText.setText("");
+				}
+			});
             return rootView;
         }
 
